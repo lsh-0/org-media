@@ -7,23 +7,48 @@
    [joker.strconv :as strconv]
    ))
 
-(def tv-show {:name "Futurama"})
-(def tv-show-season {:number 1 :year "1999"})
-(def tv-show-episodes
-  [{:number 1 :name "Space Pilot 3000"}
-   {:number 2 :name "The Series Has Landed"}
-   {:number 3 :name "I, Roommate"}
-   {:number 4 :name "Love's Labours Lost in Space"}
-   {:number 5 :name "Fear of a Bot Planet"}
-   {:number 6 :name "A Fishful of Dollars"}
-   {:number 7 :name "My Three Suns"}
-   {:number 8 :name "A Big Piece of Garbage"}
-   {:number 9 :name "Hell Is Other Robots"}
-   {:number 10 :name "A Flight to Remember"}
-   {:number 11 :name "Mars University"}
-   {:number 12 :name "When Aliens Attack"}
-   {:number 13 :name "Fry and the Slurm Factory"}
-   ])
+(def tv-show
+  {:name "Futurama"
+   :season-list
+   [{:number 1 :year "1999"
+     :episode-list
+     [{:number 1 :name "Space Pilot 3000"}
+      {:number 2 :name "The Series Has Landed"}
+      {:number 3 :name "I, Roommate"}
+      {:number 4 :name "Love's Labours Lost in Space"}
+      {:number 5 :name "Fear of a Bot Planet"}
+      {:number 6 :name "A Fishful of Dollars"}
+      {:number 7 :name "My Three Suns"}
+      {:number 8 :name "A Big Piece of Garbage"}
+      {:number 9 :name "Hell Is Other Robots"}
+      {:number 10 :name "A Flight to Remember"}
+      {:number 11 :name "Mars University"}
+      {:number 12 :name "When Aliens Attack"}
+      {:number 13 :name "Fry and the Slurm Factory"}]}
+
+    {:number 2 :year "1999"
+     :episode-list
+     [{:number 1 :name "I Second That Emotion"}
+      {:number 2 :name "Brannigan, Begin Again"}
+      {:number 3 :name "A Head in the Polls"}
+      {:number 4 :name "Xmas Story"}
+      {:number 5 :name "Why Must I Be a Crustacean in Love?"}
+      {:number 6 :name "The Lesser of Two Evils"}
+      {:number 7 :name "Put Your Head on My Shoulders"}
+      {:number 8 :name "Raging Bender"}
+      {:number 9 :name 	"A Bicyclops Built for Two"}
+      {:number 10 :name "A Clone of My Own"}
+      {:number 11 :name "How Hermes Requisitioned His Groove Back"}
+      {:number 12 :name "The Deep South"}
+      {:number 13 :name "Bender Gets Made"}
+      {:number 14 :name "Mother's Day"}
+      {:number 15 :name "The Problem with Popplers"}
+      {:number 16 :name "Anthology of Interest I"}
+      {:number 17 :name "War Is the H-Word"}
+      {:number 18 :name "The Honking"}
+      {:number 19 :name "The Cryonic Woman"}]}
+
+    ]})
 
 (defn zero-pad
   [d]
@@ -55,23 +80,25 @@
   (let [[_ fname ext] (split path)]
     ;; "Futurama - s01e03 - I, Roommate.mkv"
     (format "%s - s%se%s - %s%s"
-            (-> context :tv-show :name)
-            (-> context :tv-show :season :number zero-pad)
+            (-> context :name)
+            (-> context :season :number zero-pad)
             (-> context :episode :number zero-pad)
             (-> context :episode :name)
             ext)))
 
 (defn process-file-list
   [file-list offset]
-  (let [context (-> {}
-                    (assoc :tv-show tv-show)
-                    (assoc-in [:tv-show :season] tv-show-season))]
+  (let [season 2 ;; todo
+        context (-> tv-show
+                    (assoc :season (get-in tv-show [:season-list (dec season)]))
+                    (assoc :episode nil))]
     (map-indexed (fn [i path]
                    (let [full-path (:path path)
-                         episode (nth tv-show-episodes (+ i offset))]
+                         episode (get-in context [:season :episode-list (+ i offset)])
+                         context (assoc context :episode episode)]
                      {:input-path full-path
                       :filename (:name path)
-                      :new-filename (format-path (assoc context :episode episode) full-path)})) file-list)))
+                      :new-filename (format-path context full-path)})) file-list)))
 
 (defn move-files
   [output-dir path-map]
