@@ -7,23 +7,6 @@
    [joker.strconv :as strconv]
    ))
 
-(comment "
-
-out.title_t00.mkv
-...
-title_t00.mkv
-
-
----
-
-I need to:
-
-* extract the episode number
-* increment it
-* format the title
-
-")
-
 (def tv-show {:name "Futurama"})
 (def tv-show-season {:number 1 :year "1999"})
 (def tv-show-episodes
@@ -69,8 +52,6 @@ I need to:
 
 (defn format-path
   [context path]
-  ;;(pprint/print-table context)
-  ;;(println context)
   (let [[_ fname ext] (split path)]
     ;; "Futurama - s01e03 - I, Roommate.mkv"
     (format "%s - s%se%s - %s%s"
@@ -82,11 +63,9 @@ I need to:
 
 (defn process-file-list
   [file-list offset]
-  ;;(pprint/print-table file-list)
   (let [context (-> {}
                     (assoc :tv-show tv-show)
-                    (assoc-in [:tv-show :season] tv-show-season))
-        ]
+                    (assoc-in [:tv-show :season] tv-show-season))]
     (map-indexed (fn [i path]
                    (let [full-path (:path path)
                          episode (nth tv-show-episodes (+ i offset))]
@@ -96,8 +75,8 @@ I need to:
 
 (defn move-files
   [output-dir path-map]
-  (println "moving" (:input-path path-map) "to" (fs/join output-dir (:new-filename path-map))))
-  ;;(os/rename (:input-path path-map) (fs/join output-dir (:new-filename path-map))))
+  (println "moving" (:input-path path-map) "to" (fs/join output-dir (:new-filename path-map)))
+  (os/rename (:input-path path-map) (fs/join output-dir (:new-filename path-map))))
 
 (defn process-roots
   [root-list]
