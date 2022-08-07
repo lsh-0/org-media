@@ -1,0 +1,122 @@
+(ns do
+  (:require
+   [joker.filepath :as fs]
+   [joker.string :as string]
+   [joker.os :as os]
+   [joker.pprint :as pprint]
+   [joker.strconv :as strconv]
+   ))
+
+(comment "
+
+out.title_t00.mkv
+...
+title_t00.mkv
+
+
+---
+
+I need to:
+
+* extract the episode number
+* increment it
+* format the title
+
+")
+
+(def tv-show {:name "Futurama"})
+(def tv-show-season {:number 1 :year "1999"})
+(def tv-show-episodes
+  [{:number 1 :name "Space Pilot 3000"}
+   {:number 2 :name "The Series Has Landed"}
+   {:number 3 :name "I, Roommate"}
+   {:number 4 :name "Love's Labours Lost in Space"}
+   {:number 5 :name "Fear of a Bot Planet"}
+   {:number 6 :name "A Fishful of Dollars"}
+   {:number 7 :name "My Three Suns"}
+   {:number 8 :name "A Big Piece of Garbage"}
+   {:number 9 :name "Hell Is Other Robots"}
+   {:number 10 :name "A Flight to Remember"}
+   {:number 11 :name "Mars University"}
+   {:number 12 :name "When Aliens Attack"}
+   {:number 13 :name "Fry and the Slurm Factory"}
+   ])
+
+(defn zero-pad
+  [d]
+  (format "%02d" (int d)))
+
+(defn split
+  [path]
+  (let [[root filename] (fs/split path) ;; ["/path/to" "file.ext"]
+        [file _] (string/split filename #"\.")] ;; ["file" "ext"]
+    [root file (fs/ext filename)]))
+
+(defn list-files
+  [root]
+  (->> root os/ls (remove :dir?) (sort-by :name) (mapv #(assoc % :path (fs/join root (:name %))))))
+
+(defn args
+  []
+  ;; (os/args) when called with 'foo bar baz' => [joker --no-readline eh.joker foo bar baz]
+  ;; we want everything after 'eh.joker'
+  (let [no-joke-ext #(not= (fs/ext %) ".joker")]
+    (->> (os/args) (drop-while no-joke-ext) rest)))
+
+(defn spy [x] (println "spy:" x) x)
+
+;;
+
+(defn format-path
+  [context path]
+  ;;(pprint/print-table context)
+  ;;(println context)
+  (let [[_ fname ext] (split path)]
+    ;; "Futurama - s01e03 - I, Roommate.mkv"
+    (format "%s - s%se%s - %s%s"
+            (-> context :tv-show :name)
+            (-> context :tv-show :season :number zero-pad)
+            (-> context :episode :number zero-pad)
+            (-> context :episode :name)
+            ext)))
+
+(defn process-file-list
+  [file-list offset]
+  ;;(pprint/print-table file-list)
+  (let [context (-> {}
+                    (assoc :tv-show tv-show)
+                    (assoc-in [:tv-show :season] tv-show-season))
+        ]
+    (map-indexed (fn [i path]
+                   (let [full-path (:path path)
+                         episode (nth tv-show-episodes (+ i offset))]
+                     {:input-path full-path
+                      :filename (:name path)
+                      :new-filename (format-path (assoc context :episode episode) full-path)})) file-list)))
+
+(defn move-files
+  [output-dir path-map]
+  (println "moving" (:input-path path-map) "to" (fs/join output-dir (:new-filename path-map))))
+  ;;(os/rename (:input-path path-map) (fs/join output-dir (:new-filename path-map))))
+
+(defn process-roots
+  [root-list]
+  (loop [root-list root-list
+         file-list []]
+    (let [offset (count file-list)
+          root (first root-list)
+          file-list (into file-list (process-file-list (list-files root) offset))]
+      (if (empty? (rest root-list))
+        file-list
+        (recur (rest root-list) file-list)))))
+
+(defn main
+  [args]
+  (let [[output-dir root-list] ((juxt first rest) args)
+        file-map-list (process-roots root-list)]
+    (when-not (os/exists? output-dir)
+      (println "creating dir:" output-dir)
+      (os/mkdir-all output-dir (strconv/parse-int "755" 8 32)))
+    (run! #(move-files output-dir %) file-map-list)))
+
+(pprint/print-table (main (args)))
